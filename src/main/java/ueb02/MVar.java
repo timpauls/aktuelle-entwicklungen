@@ -8,6 +8,11 @@ public class MVar<T> {
     private final Object reader = new Object();
     private final Object writer = new Object();
 
+    public MVar(T t) {
+        this.content = t;
+        this.empty = false;
+    }
+
     public MVar() {
         this.content = null;
         this.empty = true;
