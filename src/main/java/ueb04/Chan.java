@@ -2,7 +2,7 @@ package ueb04;
 
 import ueb02.MVar;
 
-class Chan<T> {
+public class Chan<T> {
     private MVar<MVar<ChanElem<T>>> read, write;
 
     private class ChanElem<T> {
@@ -24,7 +24,7 @@ class Chan<T> {
         }
     }
 
-    public Chan() throws InterruptedException {
+    public Chan() {
         MVar<ChanElem<T>> hole = new MVar<ChanElem<T>>();
         read = new MVar<MVar<ChanElem<T>>>(hole);
         write = new MVar<MVar<ChanElem<T>>>(hole);
