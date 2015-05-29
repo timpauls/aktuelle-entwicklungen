@@ -21,19 +21,28 @@ startPhils([SL,SR|Sticks],N) ->
 
 stickDown() ->
     receive
-	{take,P} -> P!took,
-		    stickUp()
+	   {take,P} -> P!took,
+		          stickUp();
+        {check, P} -> P!ok, stickDown()
     end.
 
 stickUp() ->
     receive
-	put -> stickDown()
+	   put -> stickDown();
+       {check, P} -> P!gone, stickUp()
+    end.
+
+lookup(Stick) ->
+    Stick!{check, self()},
+    receive
+        ok -> ok;
+        gone -> gone
     end.
 
 take(Stick) ->
     Stick!{take,self()},
     receive
-	took -> ok
+	   took -> ok
     end.
 
 put(Stick) ->
@@ -42,9 +51,16 @@ put(Stick) ->
 phil(SL,SR,N) ->
     base:putStrLn(base:show(N)++" is thinking"),
     timer:sleep(10+N),
+
     take(SL),
-    take(SR),
-    base:putStrLn(base:show(N)++" is eating"),
-    put(SL),
-    put(SR),
+    case lookup(SR) of
+        ok -> 
+            take(SR),
+            base:putStrLn(base:show(N)++" is eating"),
+            put(SL),
+            put(SR);
+        gone -> 
+            put(SL)
+    end,
+
     phil(SL,SR,N).
