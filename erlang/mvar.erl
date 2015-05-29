@@ -1,5 +1,5 @@
 -module(mvar).
--export([create/0, isEmpty/1, put/2, take/1, take/2, read/1, tryPut/2, tryTake/1, swap/2, clear/1]).
+-export([create/0, isEmpty/1, put/2, overwrite/2, take/1, take/2, read/1, tryPut/2, tryTake/1, swap/2, clear/1]).
 
 empty() ->
 	receive
@@ -7,6 +7,7 @@ empty() ->
 		{put, V, Who} -> Who!{mvar_put, true}, full(V);
 		{tryPut, V, Who} -> Who!{mvar_tryput, true}, full(V);
 		{tryTake, Who} -> Who!{mvar_trytake, false}, empty();
+		{overwrite, V, Who} -> Who!{mvar_overwrite, true}, full(V);
 		clear -> empty()
 	end.
 
@@ -18,6 +19,7 @@ full(C) ->
 		{tryPut, _, Who} -> Who!{mvar_tryput, false}, full(C);
 		{tryTake, Who} -> Who!{mvar_trytake, C}, empty();
 		{swap, V, Who} -> Who!{mvar_swap, C}, full(V);
+		{overwrite, V, Who} -> Who!{mvar_overwrite, true}, full(V);
 		clear -> empty()
 	end.
 
@@ -33,6 +35,12 @@ put(M, V) ->
 		{mvar_put, X} -> X
 	end. 
 
+overwrite(M, V) ->
+	M!{overwrite, V, self()},
+	receive
+		{mvar_overwrite, X} -> X
+	end.
+
 take(M) ->
 	M!{take, self()},
 	receive
@@ -40,11 +48,18 @@ take(M) ->
 	end.
 
 take(M, Ms) ->
-	M!{take, self()},
+	Self = self(),
+	spawn(	fun() ->
+				M!{take, self()},
+				receive
+					{mvar_take, X} -> Self!{mvar_take, X}
+					after Ms ->
+						Self!timeout
+				end
+			end),
 	receive
-		{mvar_take, X} -> X
-		after Ms ->
-			timeout
+		{mvar_take, X} -> X;
+		timeout -> timeout
 	end.
 
 
