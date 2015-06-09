@@ -1,8 +1,17 @@
 -module(primes).
--export([init/0, give/1, init/2]).
+-export([init/0, give/1]).
 
-init() -> spawn(fun() -> allNumbers(2) end).
-init(N, Gen) -> spawn(fun() -> sieve(Gen, N) end).
+init() -> spawn(fun() -> collect(initAllNumbers(2)) end).
+initAllNumbers(N) -> spawn(fun() -> allNumbers(N) end).
+initSieve(N, Gen) -> spawn(fun() -> sieve(Gen, N) end).
+
+collect(Gen) ->
+	receive
+		{give, Who} ->
+			N = give(Gen),
+			Who!N,
+			collect(initSieve(N, Gen))
+	end.
 
 allNumbers(N) ->
 	receive
