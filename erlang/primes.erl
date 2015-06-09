@@ -1,5 +1,14 @@
 -module(primes).
--export([init/0, give/1]).
+-export([loop/0]).
+
+loop() -> loop2(init()).
+
+loop2(Gen) ->
+	receive
+		after 500 ->
+			base:putStrLn(base:show(give(Gen))),
+			loop2(Gen)
+	end.
 
 init() -> spawn(fun() -> collect(initAllNumbers(2)) end).
 initAllNumbers(N) -> spawn(fun() -> allNumbers(N) end).
