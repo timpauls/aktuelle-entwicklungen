@@ -10,10 +10,10 @@ startTestEmpty :: Int -> IO ()
 startTestEmpty n = do
 	chan <- newChan
 	print "Start Thread Reader"
-	forkIO (reader chan)
+	forkIO $ reader chan
 	threadDelay 2000000
 	print "Start Thread Empty"
-	forkIO (empty chan)
+	forkIO $ empty chan
 	threadDelay 2000000
 	return ()
 
@@ -21,10 +21,10 @@ startTestUnget :: Int -> IO ()
 startTestUnget n = do
 	chan <- newChan
 	print "Start Thread Reader"
-	forkIO (reader chan)
+	forkIO $ reader chan
 	threadDelay 2000000
 	print "Start Thread Unget"
-	forkIO (ungetter chan)
+	forkIO $ ungetter chan
 	threadDelay 2000000
 	return ()
 
