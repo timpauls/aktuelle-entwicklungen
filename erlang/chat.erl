@@ -33,6 +33,7 @@ chat(Cid, Name) ->
 	case base:getLine(Name++"> ") of
 		"quit" -> 
 			broadcast(nodes(), Name, msg, Name++" has left."),
+			timer:sleep(500),
 			Cid!{quit};
 		Str -> broadcast(nodes(), Name, msg, Str), chat(Cid, Name)
 	end.
