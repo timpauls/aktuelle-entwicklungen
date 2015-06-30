@@ -1,0 +1,12 @@
+isEmpty:
+	leeren chan erstellen
+	read auf den leeren chan
+	dann isEmpty
+		-> würde in java blockieren.
+
+ungetChan:
+	leeren chan erstellen
+	read auf leeren chan
+	dann unget
+		-> würde in java blockieren.
+		soll aber unget ausführen, und dann soll der reader das element lesen.
