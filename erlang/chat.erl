@@ -32,7 +32,7 @@ keyboard(Cid, Name) ->
 chat(Cid, Name) ->
 	case base:getLine(Name++"> ") of
 		"quit" -> 
-			broadcast(nodes(), Name, quit, Name++" has left."),
+			broadcast(nodes(), Name, msg, Name++" has left."),
 			Cid!{quit};
 		Str -> broadcast(nodes(), Name, msg, Str), chat(Cid, Name)
 	end.
