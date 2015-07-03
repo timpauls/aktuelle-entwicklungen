@@ -1,0 +1,32 @@
+Transaktion:
+	Aktionen:
+		readTVar t1
+		readTVar t2
+		writeTVar t1 42
+		readTVar t1 		<- nicht wirklich t1 lesen, sondern schauen ob t1 in der transaktion schon im writeSet ist.
+		writeTVar t3 73
+
+
+ReadSet:		WriteSet:
+[]				[]
+(t1, v1)		
+(t2, v2)		
+				(t1, 42)
+
+				(t3, 73)
+========================
+(lock alles)
+(validate)
+
+Validate:
+	ReadSet noch aktuell ?!
+	Man schaut für alle Werte im ReadSet ob die Werte noch die selben sind.
+		Wenn nicht, wurde die Welt während der Transaktion verändert!
+		Das wäre nicht gut! Inkonsistenter Zustand!
+
+Wenn nicht Valide:
+	- RollBack
+
+Wenn doch:
+	- Transaktion "committen"
+		-> Das was im WriteSet drin steht, einfach ausführen/rausschreiben. 
