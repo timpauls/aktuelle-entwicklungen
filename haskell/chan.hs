@@ -2,12 +2,12 @@ module Main where
 import Control.Concurrent
 
 main = do
-	startTestUnget 1
+	startTestUnget
 	threadDelay 2000000
-	startTestEmpty 1
+	startTestEmpty
 
-startTestEmpty :: Int -> IO ()
-startTestEmpty n = do
+startTestEmpty :: IO ()
+startTestEmpty = do
 	chan <- newChan
 	putStrLn "Start Thread Reader"
 	forkIO $ reader chan
@@ -17,8 +17,8 @@ startTestEmpty n = do
 	threadDelay 2000000
 	return ()
 
-startTestUnget :: Int -> IO ()
-startTestUnget n = do
+startTestUnget :: IO ()
+startTestUnget = do
 	chan <- newChan
 	putStrLn "Start Thread Reader"
 	forkIO $ reader chan
