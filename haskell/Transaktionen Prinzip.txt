@@ -30,3 +30,5 @@ Wenn nicht Valide:
 Wenn doch:
 	- Transaktion "committen"
 		-> Das was im WriteSet drin steht, einfach ausführen/rausschreiben. 
+
+In der Praxis stehen im ReadSet in den V's "Versionen" und nicht die tatsächlichen Werte.
