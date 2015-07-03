@@ -1,12 +1,13 @@
 module Main where
 import Control.Concurrent
+import Control.Concurrent.STM
 
 main = do
-	s1 <- newStick
-	s2 <- newStick
-	s3 <- newStick
-	s4 <- newStick
-	s5 <- newStick
+	s1 <- atomically newStick
+	s2 <- atomically newStick
+	s3 <- atomically newStick
+	s4 <- atomically newStick
+	s5 <- atomically newStick
 
 	forkIO $ phil 1 s1 s2
 	forkIO $ phil 2 s2 s3
@@ -15,25 +16,33 @@ main = do
 
 	phil 5 s5 s1
 
-type Stick = MVar ()
+type Stick = TVar Bool
 
-newStick :: IO Stick
+newStick :: STM Stick
 newStick = do
-	newMVar ()
+	newTVar True
 
-takeStick :: Stick -> IO ()
+takeStick :: Stick -> STM ()
 takeStick stick = do
-	takeMVar stick
+	b <- readTVar stick
+	if b then
+		writeTVar stick False
+	else
+		retry
 
-putStick :: Stick -> IO ()
+putStick :: Stick -> STM ()
 putStick stick = do
-	putMVar stick ()
+	writeTVar stick True
 
 phil :: Int -> Stick -> Stick -> IO ()
 phil n l r = do
-	takeStick l
-	takeStick r
+	atomically $ do
+		takeStick l
+		takeStick r
+		
 	print n
-	putStick l
-	putStick r
+	atomically $ do 
+		putStick l
+		putStick r
+
 	phil n l r
