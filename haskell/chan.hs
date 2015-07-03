@@ -5,6 +5,8 @@ main = do
 	startTestUnget
 	threadDelay 2000000
 	startTestEmpty
+	threadDelay 2000000
+	startTestList
 
 startTestEmpty :: IO ()
 startTestEmpty = do
@@ -27,6 +29,32 @@ startTestUnget = do
 	forkIO $ ungetter chan
 	threadDelay 2000000
 	return ()
+
+startTestList :: IO ()
+startTestList = do
+	putStrLn "Starting List Test"
+	chan <- newChan
+	let list1 = [1..2000000]
+	let list2 = [2000001..4000000]
+	forkIO $ writerList chan list1
+	forkIO $ writerList chan list2
+	let l = list1 ++ list2
+	let l2 = list2 ++ list1
+	threadDelay 2000000
+	content <- getChanContents chan
+	let bla = take (length l) content
+	print (bla == l)
+	print (bla == l2)
+
+	return ()
+
+writerList :: Chan Int -> [Int] -> IO ()
+writerList channel list = do
+	writeList2Chan channel list
+
+writer :: Chan Int -> IO ()
+writer channel = do
+	writeChan channel 37
 
 reader :: Chan Int -> IO ()
 reader channel = do
