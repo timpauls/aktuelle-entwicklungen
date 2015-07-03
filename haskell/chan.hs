@@ -9,10 +9,10 @@ main = do
 startTestEmpty :: Int -> IO ()
 startTestEmpty n = do
 	chan <- newChan
-	print "Start Thread Reader"
+	putStrLn "Start Thread Reader"
 	forkIO $ reader chan
 	threadDelay 2000000
-	print "Start Thread Empty"
+	putStrLn "Start Thread Empty"
 	forkIO $ empty chan
 	threadDelay 2000000
 	return ()
@@ -20,32 +20,32 @@ startTestEmpty n = do
 startTestUnget :: Int -> IO ()
 startTestUnget n = do
 	chan <- newChan
-	print "Start Thread Reader"
+	putStrLn "Start Thread Reader"
 	forkIO $ reader chan
 	threadDelay 2000000
-	print "Start Thread Unget"
+	putStrLn "Start Thread Unget"
 	forkIO $ ungetter chan
 	threadDelay 2000000
 	return ()
 
 reader :: Chan Int -> IO ()
 reader channel = do
-	print "start read"
+	putStrLn "start read"
 	result <- readChan channel
 	threadDelay 2000000
-	print $ "result " ++ show result
+	putStrLn $ "result " ++ show result
 
 
 ungetter :: Chan Int -> IO ()
 ungetter channel = do
-	print "start unget"
+	putStrLn "start unget"
 	unGetChan channel 1337
 	threadDelay 2000000
-	print "end unget"
+	putStrLn "end unget"
 
 empty :: Chan Int -> IO ()
 empty channel = do
-	print "start isEmpty"
+	putStrLn "start isEmpty"
 	result <- isEmptyChan channel
 	threadDelay 2000000
-	print $ "result " ++ show result
+	putStrLn $ "result " ++ show result
