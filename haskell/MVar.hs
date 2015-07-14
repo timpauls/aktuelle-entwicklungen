@@ -17,7 +17,7 @@ takeMVar m = do
 			return v
 
 putMVar :: MVar a -> a ->  STM ()
-takeMVar m = do
+putMVar m v = do
 	mv <- readTVar m
 	case mv of
 		Just _ -> retry
