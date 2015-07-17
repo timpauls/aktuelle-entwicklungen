@@ -1,0 +1,6 @@
+1. termin: (15. September - 9 Uhr)
+	- nebenläufigkeit in go erklären
+	- am beispiel: philosophen AND mvar
+
+2. termin: (25. September - 9 Uhr)
+	- STM implementierung präsentieren.
