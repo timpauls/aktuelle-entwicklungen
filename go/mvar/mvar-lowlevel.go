@@ -55,8 +55,6 @@ func (m * MVar) take() int {
   return result
 }
 
-var value []int = make([]int, 0, 1)
-
 func main() {
   m := NewMVar()
 
