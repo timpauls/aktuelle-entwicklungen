@@ -63,6 +63,11 @@ func NewRWSet() *RWSet {
 
 type Action func() STMValue
 
+func atomically (trans Action) STMValue {
+  state = NewRWSet() // clear rw-set.
+  return nil
+}
+
 
 func main() {
   t := NewTVar(2)
