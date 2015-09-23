@@ -3,7 +3,7 @@ package stm
 import (
   "errors"
   "log"
-  // "io/ioutil"
+  "io/ioutil"
 )
 
 type STMValue interface {
@@ -23,7 +23,7 @@ func NewTVar(value STMValue) *TVar {
   return retval
 }
 
-func (t *TVar) Get() (STMValue, error) {
+func (t *TVar) Get(state *RWSet) (STMValue, error) {
   if state.ws[t] == nil {
     value := <- t.holder
     t.holder <- value
@@ -43,7 +43,7 @@ func (t *TVar) Get() (STMValue, error) {
   }
 }
 
-func (t *TVar) Set(v STMValue) {
+func (t *TVar) Set(v STMValue, state *RWSet) {
   state.ws[t] = v
 }
 
@@ -61,11 +61,45 @@ func NewRWSet() *RWSet {
 
 type Action func() (STMValue, error)
 
-func lockState(state *RWSet) map[*TVar]STMValue {
+func Retry() error {
+  return errors.New("retry")
+}
+
+type AtomicallyType struct {
+  trans Action
+  state *RWSet
+  notifier chan bool
+  retryState bool
+}
+
+func Atomically() *AtomicallyType {
+  return &AtomicallyType{
+    trans: nil,
+    state: NewRWSet(),
+  }
+}
+
+func (a *AtomicallyType) SetAction(trans Action) {
+  a.trans = trans
+}
+
+func (a *AtomicallyType) validate (storage map[*TVar]STMValue) bool {
+  log.Println(storage)
+  log.Println(a.state)
+  // validate readset.
+  for t, v := range a.state.rs {
+    if storage[t] != v {
+      return false;
+    }
+  }
+  return true;
+}
+
+func (a *AtomicallyType) lockState() map[*TVar]STMValue {
   // lock all tvars and remember values in them.
   storage := make(map[*TVar]STMValue)
 
-  for t, _ := range state.ws {
+  for t, _ := range a.state.ws {
     _, exists := storage[t]
     // do not try to double-lock a tvar :-(
     if !exists {
@@ -73,7 +107,7 @@ func lockState(state *RWSet) map[*TVar]STMValue {
     }
   }
 
-  for t, _ := range state.rs {
+  for t, _ := range a.state.rs {
     _, exists := storage[t]
     // do not try to double-lock a tvar :-(
     if !exists {
@@ -84,58 +118,21 @@ func lockState(state *RWSet) map[*TVar]STMValue {
   return storage
 }
 
-func validate (storage map[*TVar]STMValue, state *RWSet) bool {
-  log.Println(storage)
-  log.Println(state)
-  // validate readset.
-  for t, v := range state.rs {
-    if storage[t] != v {
-      return false;
-    }
-  }
-  return true;
+func (a *AtomicallyType) GetState() *RWSet {
+  return a.state
 }
 
-func Retry() error {
-  return errors.New("retry")
-}
+var notifier = make(chan bool, 1)
+var retryState = false
 
-var state *RWSet = NewRWSet()
-var notifier chan bool = make(chan bool, 1)
-var retryState bool = false
-
-type AtomicallyType struct {
-  trans Action
-  state *RWSet
-  notifier chan bool
-  retryState bool
-}
-
-func Atomically2(action Action) *AtomicallyType {
-  return &AtomicallyType{
-    trans: action,
-    state: NewRWSet(),
-    notifier: make(chan bool, 1),
-    retryState: false,
-  }
-}
-
-func (a *AtomicallyType) execute() {
-
-}
-
-
-func Atomically (trans Action) STMValue {
-  // log.SetOutput(ioutil.Discard)
-
-  state = NewRWSet() // clear rw-set.
-
+func (a *AtomicallyType) Execute() (STMValue, error) {
+  log.SetOutput(ioutil.Discard)
   log.Println("===================")
   log.Println("Atomically start..")
-  log.Println(state)
+  log.Println(a.GetState())
 
   log.Println("Executing Trans..")
-  result, err := trans()
+  result, err := a.trans()
 
   log.Println(result)
   log.Println(err)
@@ -145,22 +142,25 @@ func Atomically (trans Action) STMValue {
     case "rollback":
       log.Println("Executing rollback!")
       log.Println("===================")
-      return Atomically(trans)
+      a.state = NewRWSet()
+      return a.Execute()
     case "retry":
+      log.Println(a.state)
       retryState = true
       <- notifier
       retryState = false
       log.Println("Apply Retry...")
       log.Println("===================")
-      return Atomically(trans)
+      a.state = NewRWSet()
+      return a.Execute()
     }
   }
 
   log.Println("Locking State.")
-  storage := lockState(state)
+  storage := a.lockState()
 
   log.Println("Validating ...")
-  valid := validate(storage, state)
+  valid := a.validate(storage)
   log.Println(valid)
 
   if !valid {
@@ -170,13 +170,13 @@ func Atomically (trans Action) STMValue {
     }
     log.Println("Not Valid! Resetting...")
     log.Println("===================")
-    return Atomically(trans)
+    a.state = NewRWSet()
+    return a.Execute()
   } else {
     // commit
-    for key, value := range(state.ws) {
+    for key, value := range(a.state.ws) {
       storage[key] = value
     }
-
     // unlock
     for k, v := range storage {
       k.holder <- v
@@ -188,6 +188,6 @@ func Atomically (trans Action) STMValue {
 
     log.Println("Successful Transaction!")
     log.Println("===================")
-    return result
+    return result, nil
   }
 }

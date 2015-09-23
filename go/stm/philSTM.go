@@ -16,8 +16,8 @@ func NewStick() *Stick {
   }
 }
 
-func (s *Stick) take() error {
-  value, err := s.tvar.Get()
+func (s *Stick) take(state *stm.RWSet) error {
+  value, err := s.tvar.Get(state)
   taken := value.(bool)
 
   if err != nil {
@@ -28,45 +28,51 @@ func (s *Stick) take() error {
     return stm.Retry()
   }
 
-  s.tvar.Set(true)
+  s.tvar.Set(true, state)
 
   return nil
 }
 
-func (s *Stick) put() error {
-  s.tvar.Set(false)
+func (s *Stick) put(state *stm.RWSet) error {
+  s.tvar.Set(false, state)
   return nil
 }
 
 func phil(s1,s2 *Stick, name string) {
   for {
-    stm.Atomically(func() (stm.STMValue, error) {
-      err := s1.take()
+    take := stm.Atomically()
+    take.SetAction(func() (stm.STMValue, error) {
+      err := s1.take(take.GetState())
 
       if err != nil {
-        fmt.Printf("%s in %s.\n", err.Error(), name)
+        // fmt.Printf("%s in %s.\n", err.Error(), name)
         return nil, err
       }
 
-      err = s2.take()
+      err = s2.take(take.GetState())
 
       if err != nil {
-        fmt.Printf("%s in %s.\n", err.Error(), name)
+        // fmt.Printf("%s in %s.\n", err.Error(), name)
         return nil, err
       }
 
       return nil, nil
     })
+    take.Execute()
 
     fmt.Println(name + " is eating...")
     time.Sleep(1 * time.Second)
 
-    stm.Atomically(func() (stm.STMValue, error) {
-      s1.put()
-      s2.put()
+    put := stm.Atomically()
+    put.SetAction(func() (stm.STMValue, error) {
+      s1.put(put.GetState())
+      s2.put(put.GetState())
       return nil, nil
     })
+    put.Execute()
+
     fmt.Println(name + " put back...")
+    time.Sleep(1 * time.Second)
   }
 }
 
@@ -74,12 +80,8 @@ func main() {
   s1 := NewStick()
   s2 := NewStick()
   s3 := NewStick()
-  s4 := NewStick()
-  s5 := NewStick()
 
   go phil(s1, s2, "1")
   go phil(s2, s3, "2")
-  go phil(s3, s4, "3")
-  go phil(s4, s5, "4")
-  phil (s5, s1, "5")
+  phil (s3, s1, "3")
 }
