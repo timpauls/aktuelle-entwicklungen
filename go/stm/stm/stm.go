@@ -23,6 +23,10 @@ func NewTVar(value STMValue) *TVar {
   return retval
 }
 
+// TODO: Get und Set sind eigentlich readTVar und writeTVar und gehören
+// zu dem Atomically Objekt. Dann muss man auch den State
+// nicht mehr hereingeben. An die TVar gehören eigentlich die Methoden,
+// die es dann auch wirklich tun (aufgerufen werden die im Commit!)
 func (t *TVar) Get(state *RWSet) (STMValue, error) {
   if state.ws[t] == nil {
     value := <- t.holder
