@@ -2,7 +2,8 @@ package stm
 
 import (
   "errors"
-  "fmt"
+  "log"
+  // "io/ioutil"
 )
 
 type STMValue interface {
@@ -46,8 +47,6 @@ func (t *TVar) Set(v STMValue) {
   state.ws[t] = v
 }
 
-var state *RWSet = NewRWSet()
-
 type RWSet struct {
   rs map[*TVar]STMValue
   ws map[*TVar]STMValue
@@ -86,8 +85,8 @@ func lockState(state *RWSet) map[*TVar]STMValue {
 }
 
 func validate (storage map[*TVar]STMValue, state *RWSet) bool {
-  fmt.Println(storage)
-  fmt.Println(state)
+  log.Println(storage)
+  log.Println(state)
   // validate readset.
   for t, v := range state.rs {
     if storage[t] != v {
@@ -97,38 +96,80 @@ func validate (storage map[*TVar]STMValue, state *RWSet) bool {
   return true;
 }
 
+func Retry() error {
+  return errors.New("retry")
+}
+
+var state *RWSet = NewRWSet()
+var notifier chan bool = make(chan bool, 1)
+var retryState bool = false
+
+type AtomicallyType struct {
+  trans Action
+  state *RWSet
+  notifier chan bool
+  retryState bool
+}
+
+func Atomically2(action Action) *AtomicallyType {
+  return &AtomicallyType{
+    trans: action,
+    state: NewRWSet(),
+    notifier: make(chan bool, 1),
+    retryState: false,
+  }
+}
+
+func (a *AtomicallyType) execute() {
+
+}
+
+
 func Atomically (trans Action) STMValue {
+  // log.SetOutput(ioutil.Discard)
+
   state = NewRWSet() // clear rw-set.
 
-  fmt.Println("Atomically start..")
-  fmt.Println(state)
+  log.Println("===================")
+  log.Println("Atomically start..")
+  log.Println(state)
 
-  fmt.Println("Executing Trans..")
+  log.Println("Executing Trans..")
   result, err := trans()
 
-  fmt.Println(result)
-  fmt.Println(err)
+  log.Println(result)
+  log.Println(err)
 
   if err != nil {
     switch err.Error() {
     case "rollback":
-      fmt.Println("Executing rollback!")
+      log.Println("Executing rollback!")
+      log.Println("===================")
+      return Atomically(trans)
+    case "retry":
+      retryState = true
+      <- notifier
+      retryState = false
+      log.Println("Apply Retry...")
+      log.Println("===================")
       return Atomically(trans)
     }
   }
 
-  fmt.Println("Locking State.")
+  log.Println("Locking State.")
   storage := lockState(state)
 
-  fmt.Println("Validating ...")
+  log.Println("Validating ...")
   valid := validate(storage, state)
-  fmt.Println(valid)
+  log.Println(valid)
 
   if !valid {
     // unlock and reset to old values
     for k, v := range storage {
       k.holder <- v
     }
+    log.Println("Not Valid! Resetting...")
+    log.Println("===================")
     return Atomically(trans)
   } else {
     // commit
@@ -141,6 +182,12 @@ func Atomically (trans Action) STMValue {
       k.holder <- v
     }
 
+    if retryState {
+      notifier <- true
+    }
+
+    log.Println("Successful Transaction!")
+    log.Println("===================")
     return result
   }
 }
