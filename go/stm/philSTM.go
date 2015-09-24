@@ -16,8 +16,8 @@ func NewStick() *Stick {
   }
 }
 
-func (s *Stick) take(state *stm.RWSet) error {
-  value, err := s.tvar.Get(state)
+func (s *Stick) take(atom *stm.AtomicallyType) error {
+  value, err := atom.ReadTVar(s.tvar)
   taken := value.(bool)
 
   if err != nil {
@@ -28,13 +28,13 @@ func (s *Stick) take(state *stm.RWSet) error {
     return stm.Retry()
   }
 
-  s.tvar.Set(true, state)
+  atom.WriteTVar(s.tvar, true)
 
   return nil
 }
 
-func (s *Stick) put(state *stm.RWSet) error {
-  s.tvar.Set(false, state)
+func (s *Stick) put(atom *stm.AtomicallyType) error {
+  atom.WriteTVar(s.tvar, false)
   return nil
 }
 
@@ -42,14 +42,14 @@ func phil(s1,s2 *Stick, name string) {
   for {
     take := stm.Atomically()
     take.SetAction(func() (stm.STMValue, error) {
-      err := s1.take(take.GetState())
+      err := s1.take(take)
 
       if err != nil {
         // fmt.Printf("%s in %s.\n", err.Error(), name)
         return nil, err
       }
 
-      err = s2.take(take.GetState())
+      err = s2.take(take)
 
       if err != nil {
         // fmt.Printf("%s in %s.\n", err.Error(), name)
@@ -65,8 +65,8 @@ func phil(s1,s2 *Stick, name string) {
 
     put := stm.Atomically()
     put.SetAction(func() (stm.STMValue, error) {
-      s1.put(put.GetState())
-      s2.put(put.GetState())
+      s1.put(put)
+      s2.put(put)
       return nil, nil
     })
     put.Execute()

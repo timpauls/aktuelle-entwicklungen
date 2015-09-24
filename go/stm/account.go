@@ -16,25 +16,25 @@ func NewAccount(amount int) *Account {
   }
 }
 
-func (a *Account) getBalance(state *stm.RWSet) (int, error) {
-  value, err := a.tvar.Get(state)
+func (a *Account) getBalance(atom *stm.AtomicallyType) (int, error) {
+  value, err := atom.ReadTVar(a.tvar)
   return value.(int), err
 }
 
-func (a *Account) deposit(amount int, state *stm.RWSet) error {
-  current, err := a.getBalance(state)
-  a.tvar.Set(current + amount, state)
+func (a *Account) deposit(amount int, atom *stm.AtomicallyType) error {
+  current, err := a.getBalance(atom)
+  atom.WriteTVar(a.tvar,  current + amount)
   return err
 }
 
-func (a *Account) transfer(to *Account, amount int, state *stm.RWSet) error {
-  err := a.deposit(-amount, state)
+func (a *Account) transfer(to *Account, amount int, atom *stm.AtomicallyType) error {
+  err := a.deposit(-amount, atom)
 
   if (err != nil) {
     return err
   }
 
-  err = to.deposit(amount, state)
+  err = to.deposit(amount, atom)
 
   return err
 }
@@ -45,14 +45,14 @@ func main() {
 
   atom1 := stm.Atomically()
   atom1.SetAction(func () (stm.STMValue, error) {
-    err := k1.transfer(k2, 50, atom1.GetState())
+    err := k1.transfer(k2, 50, atom1)
     return nil, err
   })
   atom1.Execute()
 
   atom2 := stm.Atomically()
   atom2.SetAction(func () (stm.STMValue, error) {
-    err := k2.transfer(k1, 10, atom2.GetState())
+    err := k2.transfer(k1, 10, atom2)
     return nil, err
   })
 
@@ -62,8 +62,8 @@ func main() {
 
   atom3 := stm.Atomically()
   atom3.SetAction(func () (stm.STMValue, error) {
-    fmt.Println(k1.getBalance(atom3.GetState()))
-    fmt.Println(k2.getBalance(atom3.GetState()))
+    fmt.Println(k1.getBalance(atom3))
+    fmt.Println(k2.getBalance(atom3))
     return nil, nil
   })
   atom3.Execute()

@@ -23,34 +23,6 @@ func NewTVar(value STMValue) *TVar {
   return retval
 }
 
-// TODO: Get und Set sind eigentlich readTVar und writeTVar und gehören
-// zu dem Atomically Objekt. Dann muss man auch den State
-// nicht mehr hereingeben. An die TVar gehören eigentlich die Methoden,
-// die es dann auch wirklich tun (aufgerufen werden die im Commit!)
-func (t *TVar) Get(state *RWSet) (STMValue, error) {
-  if state.ws[t] == nil {
-    value := <- t.holder
-    t.holder <- value
-
-    if state.rs[t] == nil {
-      state.rs[t] = value
-      return value, nil
-    } else {
-      if value != state.rs[t] {
-        return nil, errors.New("rollback")
-      } else {
-        return value, nil
-      }
-    }
-  } else {
-    return state.ws[t], nil
-  }
-}
-
-func (t *TVar) Set(v STMValue, state *RWSet) {
-  state.ws[t] = v
-}
-
 type RWSet struct {
   rs map[*TVar]STMValue
   ws map[*TVar]STMValue
@@ -81,6 +53,30 @@ func Atomically() *AtomicallyType {
     trans: nil,
     state: NewRWSet(),
   }
+}
+
+func (a *AtomicallyType) ReadTVar(t *TVar) (STMValue, error) {
+  if a.state.ws[t] == nil {
+    value := <- t.holder
+    t.holder <- value
+
+    if a.state.rs[t] == nil {
+      a.state.rs[t] = value
+      return value, nil
+    } else {
+      if value != a.state.rs[t] {
+        return nil, errors.New("rollback")
+      } else {
+        return value, nil
+      }
+    }
+  } else {
+    return a.state.ws[t], nil
+  }
+}
+
+func (a *AtomicallyType) WriteTVar(t *TVar, v STMValue) {
+  a.state.ws[t] = v
 }
 
 func (a *AtomicallyType) SetAction(trans Action) {
