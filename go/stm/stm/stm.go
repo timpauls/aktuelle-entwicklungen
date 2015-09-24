@@ -118,10 +118,6 @@ func (a *AtomicallyType) lockState() map[*TVar]STMValue {
   return storage
 }
 
-func (a *AtomicallyType) GetState() *RWSet {
-  return a.state
-}
-
 var notifier = make(chan bool, 1)
 var retryState = false
 
@@ -129,7 +125,10 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
   log.SetOutput(ioutil.Discard)
   log.Println("===================")
   log.Println("Atomically start..")
-  log.Println(a.GetState())
+
+  a.state = NewRWSet()
+
+  log.Println(a.state)
 
   log.Println("Executing Trans..")
   result, err := a.trans()
@@ -142,7 +141,6 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
     case "rollback":
       log.Println("Executing rollback!")
       log.Println("===================")
-      a.state = NewRWSet()
       return a.Execute()
     case "retry":
       log.Println(a.state)
@@ -151,12 +149,11 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
       retryState = false
       log.Println("Apply Retry...")
       log.Println("===================")
-      a.state = NewRWSet()
       return a.Execute()
     }
   }
 
-  log.Println("Locking State.")
+  log.Println("Locking TVars in State.")
   storage := a.lockState()
 
   log.Println("Validating ...")
@@ -170,7 +167,6 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
     }
     log.Println("Not Valid! Resetting...")
     log.Println("===================")
-    a.state = NewRWSet()
     return a.Execute()
   } else {
     // commit
