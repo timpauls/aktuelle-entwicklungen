@@ -11,11 +11,13 @@ type STMValue interface {
 
 type TVar struct {
   holder chan STMValue
+  notifiers map[chan bool]bool
 }
 
 func NewTVar(value STMValue) *TVar {
   retval := &TVar{
     holder: make(chan STMValue, 1),
+    notifiers: make(map[chan bool]bool),
   }
 
   retval.holder <- value
@@ -45,13 +47,13 @@ type AtomicallyType struct {
   trans Action
   state *RWSet
   notifier chan bool
-  retryState bool
 }
 
 func Atomically() *AtomicallyType {
   return &AtomicallyType{
     trans: nil,
     state: NewRWSet(),
+    notifier: make(chan bool, 1),
   }
 }
 
@@ -118,9 +120,6 @@ func (a *AtomicallyType) lockState() map[*TVar]STMValue {
   return storage
 }
 
-var notifier = make(chan bool, 1)
-var retryState = false
-
 func (a *AtomicallyType) Execute() (STMValue, error) {
   log.SetOutput(ioutil.Discard)
   log.Println("===================")
@@ -144,9 +143,18 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
       return a.Execute()
     case "retry":
       log.Println(a.state)
-      retryState = true
-      <- notifier
-      retryState = false
+
+      for k, _ := range(a.state.rs) {
+        k.notifiers[a.notifier] = true
+      }
+
+      <- a.notifier
+
+      // delete my notifier from the TVar.
+      for k, _ := range(a.state.rs) {
+        delete(k.notifiers, a.notifier)
+      }
+
       log.Println("Apply Retry...")
       log.Println("===================")
       return a.Execute()
@@ -178,8 +186,11 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
       k.holder <- v
     }
 
-    if retryState {
-      notifier <- true
+    // let all changing tvars notify for retry.
+    for k, _ := range a.state.ws {
+      for ch, _ := range k.notifiers {
+        ch <- true
+      }
     }
 
     log.Println("Successful Transaction!")
