@@ -71,7 +71,6 @@ func phil(s1,s2 *Stick, name string) {
     })
     put.Execute()
 
-    fmt.Println(name + " put back...")
     time.Sleep(1 * time.Second)
   }
 }
@@ -80,8 +79,12 @@ func main() {
   s1 := NewStick()
   s2 := NewStick()
   s3 := NewStick()
+  s4 := NewStick()
+  s5 := NewStick()
 
   go phil(s1, s2, "1")
   go phil(s2, s3, "2")
-  phil (s3, s1, "3")
+  go phil(s3, s4, "3")
+  go phil(s4, s5, "4")
+  phil (s5, s1, "5")
 }
