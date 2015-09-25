@@ -98,6 +98,8 @@ func (a *AtomicallyType) validate (storage map[*TVar]STMValue) bool {
 }
 
 func (a *AtomicallyType) lockState() map[*TVar]STMValue {
+  // TODO: erst alle TVars sammel, dann sortieren, dann locken
+
   // lock all tvars and remember values in them.
   storage := make(map[*TVar]STMValue)
 
@@ -144,6 +146,8 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
     case "retry":
       log.Println(a.state)
 
+      //TODO: validate bevor man wartet.
+
       for k, _ := range(a.state.rs) {
         k.notifiers[a.notifier] = true
       }
@@ -154,6 +158,10 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
       for k, _ := range(a.state.rs) {
         delete(k.notifiers, a.notifier)
       }
+
+      // TODO: neuer channel fuer atomically.
+      // atomically notifier channel mehrelementig, damit
+      // andere zusätzlich notifzierende tvars nicht suspendieren.
 
       log.Println("Apply Retry...")
       log.Println("===================")
