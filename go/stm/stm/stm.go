@@ -74,7 +74,7 @@ func Atomically(trans1 Action) (STMValue, error) {
   atom := &AtomicallyType{
     trans: trans1,
     state: NewRWSet(),
-    notifier: make(chan bool, 1),
+    notifier: nil,
   }
 
   return atom.execute()
@@ -178,6 +178,9 @@ func (a *AtomicallyType) execute() (STMValue, error) {
       log.Println(valid)
 
       if valid {
+        // take 10.000 as an exemplary arbitrary high number.
+        a.notifier = make(chan bool, 10000)
+
         for k, _ := range(a.state.rs) {
           k.notifiers[a.notifier] = true
         }
@@ -194,10 +197,6 @@ func (a *AtomicallyType) execute() (STMValue, error) {
         for k, _ := range(a.state.rs) {
           delete(k.notifiers, a.notifier)
         }
-
-        // TODO: neuer channel fuer atomically.
-        // atomically notifier channel mehrelementig, damit
-        // andere zusätzlich notifzierende tvars nicht suspendieren
       } else {
         log.Println("Unlocking TVars in State.")
         // unlock and reset to old values
