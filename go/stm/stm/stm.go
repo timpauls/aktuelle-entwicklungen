@@ -166,28 +166,51 @@ func (a *AtomicallyType) execute() (STMValue, error) {
       log.Println("===================")
       return a.execute()
     case "retry":
+      log.Println("Received a Retry!")
+      log.Println("===================")
       log.Println(a.state)
 
-      //TODO: validate bevor man wartet.
+      log.Println("Locking TVars in State.")
+      storage := a.lockState()
 
-      for k, _ := range(a.state.rs) {
-        k.notifiers[a.notifier] = true
+      log.Println("Validating ...")
+      valid := a.validate(storage)
+      log.Println(valid)
+
+      if valid {
+        for k, _ := range(a.state.rs) {
+          k.notifiers[a.notifier] = true
+        }
+
+        log.Println("Unlocking TVars in State.")
+        // unlock and reset to old values
+        for k, v := range storage {
+          k.holder <- v
+        }
+
+        <- a.notifier
+
+        // delete my notifier from the TVar.
+        for k, _ := range(a.state.rs) {
+          delete(k.notifiers, a.notifier)
+        }
+
+        // TODO: neuer channel fuer atomically.
+        // atomically notifier channel mehrelementig, damit
+        // andere zusätzlich notifzierende tvars nicht suspendieren
+      } else {
+        log.Println("Unlocking TVars in State.")
+        // unlock and reset to old values
+        for k, v := range storage {
+          k.holder <- v
+        }
       }
-
-      <- a.notifier
-
-      // delete my notifier from the TVar.
-      for k, _ := range(a.state.rs) {
-        delete(k.notifiers, a.notifier)
-      }
-
-      // TODO: neuer channel fuer atomically.
-      // atomically notifier channel mehrelementig, damit
-      // andere zusätzlich notifzierende tvars nicht suspendieren.
 
       log.Println("Apply Retry...")
       log.Println("===================")
       return a.execute()
+
+
     }
   }
 
