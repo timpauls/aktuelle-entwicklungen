@@ -40,16 +40,15 @@ func (s *Stick) put(atom *stm.AtomicallyType) error {
 
 func phil(s1,s2 *Stick, name string) {
   for {
-    take := stm.Atomically()
-    take.SetAction(func() (stm.STMValue, error) {
-      err := s1.take(take)
+    stm.Atomically(func(atom *stm.AtomicallyType) (stm.STMValue, error) {
+      err := s1.take(atom)
 
       if err != nil {
         // fmt.Printf("%s in %s.\n", err.Error(), name)
         return nil, err
       }
 
-      err = s2.take(take)
+      err = s2.take(atom)
 
       if err != nil {
         // fmt.Printf("%s in %s.\n", err.Error(), name)
@@ -58,18 +57,15 @@ func phil(s1,s2 *Stick, name string) {
 
       return nil, nil
     })
-    take.Execute()
 
     fmt.Println(name + " is eating...")
     time.Sleep(1 * time.Second)
 
-    put := stm.Atomically()
-    put.SetAction(func() (stm.STMValue, error) {
-      s1.put(put)
-      s2.put(put)
+    stm.Atomically(func(atom *stm.AtomicallyType) (stm.STMValue, error) {
+      s1.put(atom)
+      s2.put(atom)
       return nil, nil
     })
-    put.Execute()
 
     time.Sleep(1 * time.Second)
   }

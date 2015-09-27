@@ -43,28 +43,21 @@ func main() {
   k1 := NewAccount(100)
   k2 := NewAccount(200)
 
-  atom1 := stm.Atomically()
-  atom1.SetAction(func () (stm.STMValue, error) {
-    err := k1.transfer(k2, 50, atom1)
-    return nil, err
-  })
-  atom1.Execute()
-
-  atom2 := stm.Atomically()
-  atom2.SetAction(func () (stm.STMValue, error) {
-    err := k2.transfer(k1, 10, atom2)
+  stm.Atomically(func (atom *stm.AtomicallyType) (stm.STMValue, error) {
+    err := k1.transfer(k2, 50, atom)
     return nil, err
   })
 
-  go atom2.Execute()
+  go stm.Atomically(func (atom *stm.AtomicallyType) (stm.STMValue, error) {
+    err := k2.transfer(k1, 10, atom)
+    return nil, err
+  })
 
   time.Sleep(1 * time.Second)
 
-  atom3 := stm.Atomically()
-  atom3.SetAction(func () (stm.STMValue, error) {
-    fmt.Println(k1.getBalance(atom3))
-    fmt.Println(k2.getBalance(atom3))
+  stm.Atomically(func (atom *stm.AtomicallyType) (stm.STMValue, error) {
+    fmt.Println(k1.getBalance(atom))
+    fmt.Println(k2.getBalance(atom))
     return nil, nil
   })
-  atom3.Execute()
 }

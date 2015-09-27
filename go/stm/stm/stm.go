@@ -37,7 +37,7 @@ func NewRWSet() *RWSet {
   }
 }
 
-type Action func() (STMValue, error)
+type Action func(atom *AtomicallyType) (STMValue, error)
 
 func Retry() error {
   return errors.New("retry")
@@ -49,12 +49,14 @@ type AtomicallyType struct {
   notifier chan bool
 }
 
-func Atomically() *AtomicallyType {
-  return &AtomicallyType{
-    trans: nil,
+func Atomically(trans1 Action) (STMValue, error) {
+  atom := &AtomicallyType{
+    trans: trans1,
     state: NewRWSet(),
     notifier: make(chan bool, 1),
   }
+
+  return atom.execute()
 }
 
 func (a *AtomicallyType) ReadTVar(t *TVar) (STMValue, error) {
@@ -79,10 +81,6 @@ func (a *AtomicallyType) ReadTVar(t *TVar) (STMValue, error) {
 
 func (a *AtomicallyType) WriteTVar(t *TVar, v STMValue) {
   a.state.ws[t] = v
-}
-
-func (a *AtomicallyType) SetAction(trans Action) {
-  a.trans = trans
 }
 
 func (a *AtomicallyType) validate (storage map[*TVar]STMValue) bool {
@@ -122,7 +120,7 @@ func (a *AtomicallyType) lockState() map[*TVar]STMValue {
   return storage
 }
 
-func (a *AtomicallyType) Execute() (STMValue, error) {
+func (a *AtomicallyType) execute() (STMValue, error) {
   log.SetOutput(ioutil.Discard)
   log.Println("===================")
   log.Println("Atomically start..")
@@ -132,7 +130,7 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
   log.Println(a.state)
 
   log.Println("Executing Trans..")
-  result, err := a.trans()
+  result, err := a.trans(a)
 
   log.Println(result)
   log.Println(err)
@@ -142,7 +140,7 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
     case "rollback":
       log.Println("Executing rollback!")
       log.Println("===================")
-      return a.Execute()
+      return a.execute()
     case "retry":
       log.Println(a.state)
 
@@ -165,7 +163,7 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
 
       log.Println("Apply Retry...")
       log.Println("===================")
-      return a.Execute()
+      return a.execute()
     }
   }
 
@@ -183,7 +181,7 @@ func (a *AtomicallyType) Execute() (STMValue, error) {
     }
     log.Println("Not Valid! Resetting...")
     log.Println("===================")
-    return a.Execute()
+    return a.execute()
   } else {
     // commit
     for key, value := range(a.state.ws) {
