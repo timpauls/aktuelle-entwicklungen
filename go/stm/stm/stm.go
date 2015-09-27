@@ -4,6 +4,8 @@ import (
   "errors"
   "log"
   "io/ioutil"
+  "fmt"
+  "sort"
 )
 
 type STMValue interface {
@@ -12,6 +14,23 @@ type STMValue interface {
 type TVar struct {
   holder chan STMValue
   notifiers map[chan bool]bool
+}
+
+type TVars []*TVar
+
+func (t TVars) Len() int {
+  return len(t)
+}
+
+func (t TVars) Less(i, j int) bool {
+  iPtr :=fmt.Sprint(t[i])
+  jPtr :=fmt.Sprint(t[j])
+
+  return iPtr < jPtr
+}
+
+func (t TVars) Swap(i, j int) {
+  t[i], t[j] = t[j], t[i]
 }
 
 func NewTVar(value STMValue) *TVar {
@@ -24,6 +43,8 @@ func NewTVar(value STMValue) *TVar {
 
   return retval
 }
+
+
 
 type RWSet struct {
   rs map[*TVar]STMValue
@@ -96,25 +117,28 @@ func (a *AtomicallyType) validate (storage map[*TVar]STMValue) bool {
 }
 
 func (a *AtomicallyType) lockState() map[*TVar]STMValue {
-  // TODO: erst alle TVars sammel, dann sortieren, dann locken
-
-  // lock all tvars and remember values in them.
-  storage := make(map[*TVar]STMValue)
-
+  allTvars := make(map[*TVar]bool)
   for t, _ := range a.state.ws {
-    _, exists := storage[t]
-    // do not try to double-lock a tvar :-(
-    if !exists {
-      storage[t] = <- t.holder
-    }
+    allTvars[t] = true
   }
 
   for t, _ := range a.state.rs {
-    _, exists := storage[t]
-    // do not try to double-lock a tvar :-(
-    if !exists {
-      storage[t] = <- t.holder
-    }
+    allTvars[t] = true
+  }
+
+  // collect all unique tvars in a slice to sort them.
+  slice := TVars{}
+  for t, _ := range allTvars {
+    slice = append(slice, t)
+  }
+
+  // sort tvars by pointer
+  sort.Stable(slice)
+
+  // lock the shit out of them.
+  storage := make(map[*TVar]STMValue)
+  for _, t := range(slice) {
+    storage[t] = <- t.holder
   }
 
   return storage
